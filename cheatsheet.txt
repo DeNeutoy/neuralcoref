@@ -1,0 +1,3 @@
+# Preprocess data for training
+python -m neuralcoref.train.conllparser --function all --path ../data/CRAFT/test_coref/test/ --spacy_model en_core_sci_sm
+

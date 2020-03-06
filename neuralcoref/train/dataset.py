@@ -70,7 +70,7 @@ class NCDataset(Dataset):
                 continue
             numpy_files_found = True
             print(file_name, end=', ')
-            datas[file_name.split(u'.')[0]] = np.load(data_path + file_name, mmap_mode="r" if params.lazy else None)
+            datas[file_name.split(u'.')[0]] = np.load(data_path + file_name,mmap_mode="r" if params.lazy else None)
         if not numpy_files_found:
             raise ValueError("Can't find numpy files in {}".format(data_path))
 
@@ -134,7 +134,7 @@ class NCDataset(Dataset):
         features = np.zeros((SIZE_FS,))
         features[features_raw[0]] = 1
         features[4:15] = encode_distance(features_raw[1])
-        features[15] = features_raw[2].astype(float) / features_raw[3].astype(float)
+        features[15] = float(features_raw[2]) / float(features_raw[3])
         features[16] = features_raw[4]
         features[features_raw[5] + 17] = 1
 

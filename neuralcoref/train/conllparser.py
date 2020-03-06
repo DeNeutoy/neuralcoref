@@ -34,8 +34,6 @@ NORMALIZE_DICT = {"/.": ".",
                   "-LSB-": "[",
                   "-RSB-": "]"}
 
-CONLL_GENRES = {"bc": 0, "bn": 1, "mz": 2, "nw": 3, "pt": 4, "tc": 5, "wb": 6}
-
 FEATURES_NAMES = ["mentions_features",          # 0
                   "mentions_labels",            # 1
                   "mentions_pairs_length",      # 2
@@ -153,6 +151,7 @@ def load_file(full_name, debug=False):
                     utts_text.append(u''.join(t + u' ' for t in tokens))
                     utts_tokens.append(tokens)
                     utts_speakers.append(speaker)
+                    corefs = [c for c in corefs if c.get("end", None) is not None]
                     utts_corefs.append(corefs)
                     tokens = []
                     corefs = []
@@ -190,7 +189,7 @@ def load_file(full_name, debug=False):
             elif len(cols) > 7:
                 if debug: print("Inside utterance")
                 assert (cols[0] == name and int(cols[1]) == int(part)), "Doc name or part error " + line
-                assert (int(cols[2]) == index), "Index error on " + line
+                assert (int(cols[2]) == index + 1), "Index error on " + line
                 if speaker:
                     assert (cols[9] == speaker), "Speaker changed in " + line + speaker
                 else:
@@ -204,7 +203,7 @@ def load_file(full_name, debug=False):
                     for tok in coref_expr:
                         if debug: print("coref tok", tok)
                         try:
-                            match = re.match(r"^(\(?)(\d+)(\)?)$", tok)
+                            match = re.match(r"^(\(?)(\d+[a-z]*)(\)?)$", tok)
                         except:
                             print("error getting coreferences for line " + line)
                         assert match is not None, "Error parsing coref " + tok + " in " + line
@@ -220,13 +219,28 @@ def load_file(full_name, debug=False):
                                 if corefs[i]['label'] == num and corefs[i]['end'] is None:
                                     j = i
                                     break
-                            assert (j is not None), "coref closing error " + line
+                            #assert (j is not None), "coref closing error " + line
                             if debug: print("End coref", num)
-                            corefs[j]['end'] = index
+                            if j is not None:
+                                corefs[j]['end'] = index
                 tokens.append(clean_token(cols[3]))
                 index += 1
             else:
                 raise ValueError("Line not standard " + line)
+
+    if debug: print("End of doc")
+    if utts_text:
+        if debug: print("Saving doc")
+        docs.append((utts_text, utts_tokens, utts_corefs, utts_speakers, name, part))
+        utts_text = []
+        utts_tokens = []
+        utts_corefs = []
+        utts_speakers = []
+    else:
+        raise ValueError("Error on end line " + line)
+
+    if debug:
+        print(docs)
     return docs
 
 def set_feats(doc):
@@ -525,13 +539,13 @@ class ConllCorpus(object):
             if debug: print("Key file saved in", key_file)
             for dirpath, _, filenames in os.walk(data_path):
                 print("In", dirpath)
-                file_list = [os.path.join(dirpath, f) for f in filenames if f.endswith(".v4_auto_conll") \
-                            or f.endswith(".v4_gold_conll")]
+                file_list = [os.path.join(dirpath, f) for f in filenames if f.endswith(".conll") \
+                            or f.endswith(".conll")]
                 cleaned_file_list = []
                 for f in file_list:
                     fn = f.split('.')
-                    if fn[1] == "v4_auto_conll":
-                        gold = fn[0] + "." + "v4_gold_conll"
+                    if fn[1] == "conll":
+                        gold = fn[0] + "." + "conll"
                         if gold not in file_list:
                             cleaned_file_list.append(f)
                     else:
@@ -556,13 +570,13 @@ class ConllCorpus(object):
         print("🌋 Reading files")
         for dirpath, _, filenames in os.walk(data_path):
             print("In", dirpath, os.path.abspath(dirpath))
-            file_list = [os.path.join(dirpath, f) for f in filenames if f.endswith(".v4_auto_conll") \
-                        or f.endswith(".v4_gold_conll")]
+            file_list = [os.path.join(dirpath, f) for f in filenames if f.endswith(".conll") \
+                        or f.endswith(".conll")]
             cleaned_file_list = []
             for f in file_list:
                 fn = f.split('.')
-                if fn[1] == "v4_auto_conll":
-                    gold = fn[0] + "." + "v4_gold_conll"
+                if fn[1] == "conll":
+                    gold = fn[0] + "." + "conll"
                     if gold not in file_list:
                         cleaned_file_list.append(f)
                 else:
@@ -593,7 +607,7 @@ class ConllCorpus(object):
             self.docs.append(ConllDoc(name=name, part=part, nlp=None,
                                       blacklist=self.blacklist, consider_speakers=True,
                                       embedding_extractor=self.embed_extractor,
-                                      conll=CONLL_GENRES[name[:2]]))
+                                      ))
         print("🌋 Loading spacy model")
 
         if model is None:
